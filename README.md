@@ -8,6 +8,15 @@
 
 k8s는 ServiceBroker(SB)가 사용 가능한 서비스 목록을 **카탈로그**에 등록할 수 있도록 해주는 [Service Catalog Projec](https://github.com/kubernetes-sigs/service-catalog)t를 가지고 있습니다. 사용 권한이 있는 User는 Service Catalog(SC)를 요청할 수 있습니다. k8s SC를 Install 하는 방법은 여러가지가 있는데 [Helm](https://github.com/kubernetes-sigs/service-catalog/blob/master/docs/install.md)에서도 제공이 됩니다. 또, SC에는 [svcat](https://svc-cat.io/docs/cli/)이라는 Process를 쉽게 생성하는 CLI도 제공됩니다.
 
+## svcat 명령어가 안될 때 Install
+
+- **Linux**
+
+**`curl -sLO https://download.svcat.sh/cli/latest/linux/amd64/svcat
+chmod +x ./svcat
+mv ./svcat /usr/local/bin/
+svcat version --client`**
+
 # Service Catalog
 
 서비스 카탈로그에는 서비스 브로커가 제공 할 수있는 모든 사용 가능한 서비스를 설명하는 메타 데이터가 포함되어 있습니다.
@@ -78,26 +87,61 @@ User는 Catalog를 탐색할 수 있고 Service 실행에 필요한 Pod, Service
 
 # Example
 
-- 다른 유형의 Api service를 provisioning 할 수 있는 가상의 broker이다.
-- **GET** /v2/catalog (서비스 목록 검색) → 각 service에 대한 ClusterServiceClass Resource를 생성한다.
+## Service Catalog
+
+직접 SC에 Broker를 등록하는 방법도 있지만 예제에서는 minibroker로 진행하겠습니다.
+
+```bash
+$ helm repo add minibroker https://minibroker.blob.core.windows.net/charts
+$ helm install --name minibroker --namespace minibroker minibroker/minibroker
+```
+
+![https://s3-us-west-2.amazonaws.com/secure.notion-static.com/298c6c70-0ec1-4368-9b37-97dda17b1d0c/Untitled.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/298c6c70-0ec1-4368-9b37-97dda17b1d0c/Untitled.png)
+
+**EXTERNAL-NAME** 필드는 broker가 반환하는 서비스의 NAME 입니다.
+
+![https://s3-us-west-2.amazonaws.com/secure.notion-static.com/13c0a26b-f9bf-4d68-b6c0-378420dda080/Untitled.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/13c0a26b-f9bf-4d68-b6c0-378420dda080/Untitled.png)
+
+![https://s3-us-west-2.amazonaws.com/secure.notion-static.com/b6515b33-18c6-4c30-a11c-f0aacca3d4f2/Untitled.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/b6515b33-18c6-4c30-a11c-f0aacca3d4f2/Untitled.png)
+
+minibroker를 Install 하면 위의 이미지처럼 SC에 여러 개의 DB Service들이 추가되어있습니다.
 
 ## Service Catalog에 Broker 등록하기
 
-```yaml
-apiVersion: servicecatalog.k8s.io/v1alpha1
-kind: Broker
-metadata:
-  name: huhyun-broker   # broker name
-spec:
-  url: http://broker-url.com # Service Catalog 가 broker에 연결할 수 있는 url
+우선 k8s에 Service Catalog를 Install 되어있어야 합니다. 설치 방법은 [Helm](https://kubernetes.io/docs/tasks/service-catalog/install-service-catalog-using-helm/) 으로 진행해보겠습니다.
+
+```bash
+$ helm repo add svc-cat [https://kubernetes-sigs.github.io/service-catalog](https://kubernetes-sigs.github.io/service-catalog)
 ```
 
-# URL Properties
+```bash
+$ helm install catalog svc-cat/catalog --namespace catalog
+```
 
-This specification defines the following properties that might appear within URLs:
+### ClusterServiceBroker
 
-- service_id
-- plan_id
-- instance_id
-- binding_id
-- operation
+Service는 SB에서 관리하므로 먼저 ClusterServiceBroker Instance를 만들어서 SB 를 등록해야합니다.
+
+SB 를 Cluster 전체에서 사용할 수 있도록 하려면 ClusterServiceBroker Resource를 사용하여 Broker를 등록합니다.
+
+```yaml
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ClusterServiceBroker
+metadata:
+  name: huhyun-csb # broker name
+  namespace: huhyun
+spec:
+  url: # Service Catalog 가 broker에 연결할 수 있는 url
+# 위와 같이 create 하면 kubectl get clusterserviceclasses 했을 때
+# minibroker에서 제공되는 DB Service들 처럼 Cluster에서 Provisioning 가능한 목록들을 확인할 수 있습니다.
+```
+
+### ServiceInstance Provisioning
+
+| *ServiceInstance는 Namespace가 지정되어있어야합니다*
+
+pod에서 Service를 사용하기 위해서는 ServiceBinding을 생성해서 Binding 해야 합니다.
+
+```bash
+
+```
